@@ -7,6 +7,8 @@ use std::{
     time::Duration,
 };
 
+use thiserror::Error;
+
 pub mod core_affinity;
 pub mod num_cores;
 
@@ -14,16 +16,27 @@ use num_cores::num_cpus;
 
 pub static CLUSTER_MAX: usize = 0;
 
+pub trait Key: Hash + Eq + Send + Sync + 'static {}
+impl<T: Hash + Eq + Send + Sync + 'static> Key for T {}
+
+pub trait Value: Send + Sync + 'static {}
+impl<T: Send + Sync + 'static> Value for T {}
+
+#[derive(Error, Debug)]
+pub enum KVError {
+    #[error("unknown error occurred")]
+    Unknown,
+}
+
+type KVResult<T> = Result<T, KVError>;
+
 #[derive(Debug)]
 pub struct Shard<K, V> {
     id  : usize,
     data: HashMap<K, V>,
 }
 
-impl<K, V> Shard<K, V>
-where
-    K: Hash + Eq,
-{
+impl<K: Key, V: Value> Shard<K, V> {
     pub fn new(id: usize) -> Self {
         Self {
             id,
@@ -34,9 +47,13 @@ where
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         self.data.insert(key, value)
     }
+
+    pub fn get(&self, key: &K) -> Option<&V> {
+        self.data.get(key)
+    }
 }
 
-pub struct Node<K, V> {
+pub struct Node<K: Key, V: Value> {
     id            : usize,
     num_cores     : num_cpus::LogicalCores,
     shards        : Vec<Option<Shard<K, V>>>,
@@ -44,7 +61,7 @@ pub struct Node<K, V> {
     thread_handles: Vec<JoinHandle<()>>,
 }
 
-impl<K, V> std::fmt::Debug for Node<K, V> {
+impl<K: Key, V: Value> std::fmt::Debug for Node<K, V> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Node")
             .field("id", &self.id)
@@ -55,11 +72,7 @@ impl<K, V> std::fmt::Debug for Node<K, V> {
     }
 }
 
-impl<K, V> Node<K, V>
-where
-    K: Send + Sync + Hash + Eq + Debug + 'static,
-    V: Send + Sync + Hash + Eq + Debug + 'static,
-{
+impl<K: Key, V: Value> Node<K, V> {
     pub fn new(id: usize, mut cluster_max: usize) -> Self {
         let num_cores = num_cpus::detect();
         cluster_max = usize::max(num_cores.as_usize(), cluster_max);
@@ -80,41 +93,6 @@ where
             shards,
             shutdown      : Arc::new(AtomicBool::new(false)),
             thread_handles: Vec::new(),
-        }
-    }
-
-    pub fn start(&mut self) {
-        for (core_id, opt_shard) in self.shards.iter_mut().enumerate() {
-            if let Some(shard) = opt_shard.take() {
-                let shutdown_flag = Arc::clone(&self.shutdown);
-                
-                let handle = thread::spawn(move || {
-                    let core = core_affinity::CoreId { id: core_id };
-                    core_affinity::set_for_current(core);
-
-                    println!("Thread on core {} started with shard {}", core_id, shard.id);
-
-                    while !shutdown_flag.load(Ordering::Relaxed) {
-                        thread::sleep(Duration::from_millis(500));
-                    }
-                    
-                    println!("Thread on core {} shutting down", core_id);
-                });
-                
-                self.thread_handles.push(handle);
-            }
-        }
-    }
-}
-
-impl<K, V> Drop for Node<K, V> {
-    fn drop(&mut self) {
-        self.shutdown.store(true, Ordering::Relaxed);
-        
-        while let Some(handle) = self.thread_handles.pop() {
-            if let Err(e) = handle.join() {
-                eprintln!("Thread panicked: {:?}", e);
-            }
         }
     }
 }
