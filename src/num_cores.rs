@@ -16,18 +16,18 @@ macro_rules! impl_as {
 }
 
 pub mod num_cpus {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct LogicalCores(usize);
+    // #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    // pub struct LogicalCores(usize);
 
-    impl_as!(newtype = LogicalCores =>
-        as_u8   : u8,
-        as_i64  : u64,
-        as_usize: usize,
-    );
+    // impl_as!(newtype = LogicalCores =>
+    //     as_u8   : u8,
+    //     as_i64  : u64,
+    //     as_usize: usize,
+    // );
 
     #[inline]
-    pub fn detect() -> LogicalCores {
-        LogicalCores(get_num_cpus())
+    pub fn detect() -> usize {
+        get_num_cpus()
     }
 
     #[cfg(any(target_os = "linux"))]

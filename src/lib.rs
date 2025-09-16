@@ -2,11 +2,9 @@ use std::{
     collections::HashMap,
     fmt::Debug,
     hash::Hash,
-    sync::{Arc, atomic::{AtomicBool, Ordering}},
-    thread::{self, JoinHandle},
-    time::Duration,
 };
 
+use rtrb::{RingBuffer, Consumer, Producer};
 use thiserror::Error;
 
 pub mod core_affinity;
@@ -19,8 +17,8 @@ pub static CLUSTER_MAX: usize = 0;
 pub trait Key: Hash + Eq + Send + Sync + 'static {}
 impl<T: Hash + Eq + Send + Sync + 'static> Key for T {}
 
-pub trait Value: Send + Sync + 'static {}
-impl<T: Send + Sync + 'static> Value for T {}
+pub trait Value: Hash + Eq + Send + Sync + 'static {}
+impl<T: Hash + Eq + Send + Sync + 'static> Value for T {}
 
 #[derive(Error, Debug)]
 pub enum KVError {
@@ -30,17 +28,37 @@ pub enum KVError {
 
 type KVResult<T> = Result<T, KVError>;
 
-#[derive(Debug)]
-pub struct Shard<K, V> {
-    id  : usize,
-    data: HashMap<K, V>,
+pub enum Request<K, V> {
+    PUT(K, V),
+    GET(K),
 }
 
-impl<K: Key, V: Value> Shard<K, V> {
-    pub fn new(id: usize) -> Self {
-        Self {
+pub struct Shard<K, V> {
+    id      : usize,
+    data    : HashMap<K, V>,
+    out_vec : Vec<Option<Producer<Request<K, V>>> >,
+    in_vec  : Vec<Option<Consumer<Request<K, V>>> >, 
+}
+
+impl<K, V> Shard<K, V>
+where
+    K: Key,
+    V: Value
+{
+    fn new(id: usize, num_cores: usize) -> Self {
+        Shard {
             id,
             data: HashMap::new(),
+            out_vec: (0..num_cores).map(|_| None).collect(),
+            in_vec: (0..num_cores).map(|_| None).collect(),
+        }
+    }
+
+    pub fn send(&mut self, dst: usize, request: Request<K, V>) -> KVResult<()> {
+        if let Some(prod) = &mut self.out_vec[dst] {
+            prod.push(request).map_err(|_r| KVError::Unknown)
+        } else {
+            Err(KVError::Unknown)
         }
     }
 
@@ -54,11 +72,9 @@ impl<K: Key, V: Value> Shard<K, V> {
 }
 
 pub struct Node<K: Key, V: Value> {
-    id            : usize,
-    num_cores     : num_cpus::LogicalCores,
-    shards        : Vec<Option<Shard<K, V>>>,
-    shutdown      : Arc<AtomicBool>,
-    thread_handles: Vec<JoinHandle<()>>,
+    id        : usize,
+    num_cores : usize,
+    shards    : Vec<Shard<K, V>>,
 }
 
 impl<K: Key, V: Value> std::fmt::Debug for Node<K, V> {
@@ -66,33 +82,38 @@ impl<K: Key, V: Value> std::fmt::Debug for Node<K, V> {
         f.debug_struct("Node")
             .field("id", &self.id)
             .field("num_cores", &self.num_cores)
-            .field("active_shards", &self.shards.iter().filter(|s| s.is_some()).count())
-            .field("active_threads", &self.thread_handles.len())
+            .field("active_shards", &self.shards.len())
             .finish()
     }
 }
 
-impl<K: Key, V: Value> Node<K, V> {
-    pub fn new(id: usize, mut cluster_max: usize) -> Self {
+impl<K, V> Node<K, V>
+where
+    K: Key,
+    V: Value
+{
+    pub fn new(id: usize) -> Self { // maybe something later like max cores in cluster idk
         let num_cores = num_cpus::detect();
-        cluster_max = usize::max(num_cores.as_usize(), cluster_max);
 
-        let shards = (0..cluster_max)
-            .map(|i| {
-                if i < num_cores.as_usize() {
-                    Some(Shard::new(i))
-                } else {
-                    None
-                }
-            })
+        let mut shards: Vec<Shard<K, V>> = (0..num_cores)
+            .map(|i| Shard::new(i, num_cores))
             .collect();
+
+        for src in 0..num_cores {
+            for dst in 0..num_cores {
+                if src == dst {
+                    continue
+                }
+                let (prod, cons) = RingBuffer::<Request<K, V>>::new(100);
+                shards[src].out_vec[dst] = Some(prod);
+                shards[dst].in_vec[src]  = Some(cons);
+            }
+        }
 
         Self {
             id,
             num_cores,
             shards,
-            shutdown      : Arc::new(AtomicBool::new(false)),
-            thread_handles: Vec::new(),
         }
     }
 }
