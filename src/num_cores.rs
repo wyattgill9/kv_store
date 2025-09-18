@@ -2,6 +2,9 @@
 // Calculation for the number of Logical CPU cores
 // Works on MacOS, BSD, Linux
 
+// impl_as( Type =>
+//     as_u64, u64,
+// )
 macro_rules! impl_as {
     (newtype = $ty:ty => $($method:ident : $cast:ty),+ $(,)?) => {
         impl $ty {

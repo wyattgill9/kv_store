@@ -188,7 +188,7 @@ mod macos {
 
     pub fn get_core_ids() -> Option<Vec<CoreId>> {
         Some(
-            (0..(num_cpus::detect().as_i64()))
+            (0..(num_cpus::detect()))
                 .into_iter()
                 .map(|n| CoreId { id: n as usize })
                 .collect::<Vec<_>>(),

@@ -1,7 +1,5 @@
 use std::{
-    collections::HashMap,
-    fmt::Debug,
-    hash::Hash,
+    collections::HashMap, fmt::Debug, hash::Hash, thread::{self, JoinHandle}
 };
 
 use rtrb::{RingBuffer, Consumer, Producer};
@@ -9,6 +7,12 @@ use thiserror::Error;
 
 pub mod core_affinity;
 pub mod num_cores;
+
+impl From<usize> for core_affinity::CoreId {
+    fn from(value: usize) -> Self {
+        core_affinity::CoreId { id: value }
+    }
+}
 
 use num_cores::num_cpus;
 
@@ -54,9 +58,25 @@ where
         }
     }
 
+    fn run(mut self) {
+        core_affinity::set_for_current(self.id.into());
+        loop {
+            println!("d");
+            // for consumer in self.in_vec.iter_mut().flatten() {
+                // while let Ok(request) = consumer.pop() {
+                    // match request {
+                        // Request::PUT(key, value) => { self.insert(key, value); }
+                        // Request::GET(key) => { self.get(&key); }
+                    // }
+                // }
+            // }
+            std::thread::sleep(std::time::Duration::from_micros(1));
+        }
+    }
+
     pub fn send(&mut self, dst: usize, request: Request<K, V>) -> KVResult<()> {
-        if let Some(prod) = &mut self.out_vec[dst] {
-            prod.push(request).map_err(|_r| KVError::Unknown)
+        if let Some(queue) = &mut self.out_vec[dst] {
+            queue.push(request).map_err(|_r| KVError::Unknown)
         } else {
             Err(KVError::Unknown)
         }
@@ -94,7 +114,7 @@ where
 {
     pub fn new(id: usize) -> Self { // maybe something later like max cores in cluster idk
         let num_cores = num_cpus::detect();
-
+        
         let mut shards: Vec<Shard<K, V>> = (0..num_cores)
             .map(|i| Shard::new(i, num_cores))
             .collect();
@@ -116,23 +136,32 @@ where
             shards,
         }
     }
+
+    pub fn run(self) {
+        let handles: Vec<_> = self.shards
+            .into_iter()
+            .map(|shard| thread::spawn(move || shard.run()))
+            .collect();
+
+        for handle in handles {
+            handle.join().ok();
+        }
+    }
+
+    fn send_shard(&mut self, shard_id: usize, req: Request<K, V>) -> Result<(), KVError> {
+        self.shards[0].send(shard_id, req) // abuse shard 0 out vec to reach the other shards todo: maybe fix this is kinda shitty
+    }
 }
 
 #[macro_export]
 macro_rules! make_node {
-    (($key:ty, $value:ty), id = $id:expr, cluster_max = $cluster_max:expr) => {
-        $crate::Node::<$key, $value>::new($id, $cluster_max)
-    };
     (($key:ty, $value:ty), id = $id:expr) => {
-        $crate::Node::<$key, $value>::new($id, $crate::CLUSTER_MAX)
+        $crate::Node::<$key, $value>::new($id)
     };
-    (id = $id: expr, cluster_max = $cm: expr) => {
-        $crate::Node::new($id, $cm)
-    };
-    ($id: expr) => {
-        $crate::Node::new($id, $crate::CLUSTER_MAX)
+    (id = $id: expr) => {
+        $crate::Node::new($id)
     };
     () => {
-        $crate::Node::new(0, $crate::CLUSTER_MAX)
+        $crate::Node::new(0)
     };
 }
