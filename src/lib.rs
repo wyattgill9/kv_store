@@ -1,5 +1,8 @@
 use std::{
-    collections::HashMap, fmt::Debug, hash::Hash, thread::{self, JoinHandle}
+    collections::HashMap,
+    fmt::Debug,
+    hash::Hash,
+    thread::{self, JoinHandle}
 };
 
 use rtrb::{RingBuffer, Consumer, Producer};
@@ -40,8 +43,8 @@ pub enum Request<K, V> {
 pub struct Shard<K, V> {
     id      : usize,
     data    : HashMap<K, V>,
-    out_vec : Vec<Option<Producer<Request<K, V>>> >,
-    in_vec  : Vec<Option<Consumer<Request<K, V>>> >, 
+    in_vec  : Vec<Option<Consumer<Request<K, V>>> >,
+    out_vec : Vec<Option<Producer<Request<K, V>>> >, 
 }
 
 impl<K, V> Shard<K, V>
@@ -60,17 +63,32 @@ where
 
     fn run(mut self) {
         core_affinity::set_for_current(self.id.into());
-        loop {
-            println!("d");
-            // for consumer in self.in_vec.iter_mut().flatten() {
-                // while let Ok(request) = consumer.pop() {
-                    // match request {
-                        // Request::PUT(key, value) => { self.insert(key, value); }
-                        // Request::GET(key) => { self.get(&key); }
-                    // }
-                // }
-            // }
+        loop {           
+            let mut requests = Vec::new();
+            for consumer in self.in_vec.iter_mut().flatten() {
+                while let Ok(request) = consumer.pop() {
+                    requests.push(request);
+                }
+            }
+            
+            for request in requests {
+                let _ = self.handle_request(request);
+            }
+            
             std::thread::sleep(std::time::Duration::from_micros(1));
+        }
+    }
+
+    pub fn handle_request(&mut self, request: Request<K, V>) -> KVResult<()> {
+        match request {
+            Request::PUT(key, value) => {
+                let _ = self.insert(key, value);
+                Ok(())
+            },
+            Request::GET(key) => {
+                let _ = self.get(&key);
+                Ok(())
+            },
         }
     }
 
@@ -138,7 +156,7 @@ where
     }
 
     pub fn run(self) {
-        let handles: Vec<_> = self.shards
+        let handles: Vec<JoinHandle<()>> = self.shards
             .into_iter()
             .map(|shard| thread::spawn(move || shard.run()))
             .collect();
@@ -148,7 +166,7 @@ where
         }
     }
 
-    fn send_shard(&mut self, shard_id: usize, req: Request<K, V>) -> Result<(), KVError> {
+    pub fn send_shard(&mut self, shard_id: usize, req: Request<K, V>) -> Result<(), KVError> {
         self.shards[0].send(shard_id, req) // abuse shard 0 out vec to reach the other shards todo: maybe fix this is kinda shitty
     }
 }
