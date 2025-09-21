@@ -1,5 +1,7 @@
+#include <chrono>
 #include <cstddef>
 #include <memory>
+#include <ratio>
 #include <thread>
 #include <unordered_map>
 #include <utility>
@@ -48,30 +50,29 @@ private:
         // Shard(const Shard&)            = default;
         // Shard& operator=(const Shard&) = default;
 
-        [[nodiscard]] bool insert(std::pair<K, V> kv) {
+        [[nodiscard]] auto insert(std::pair<K, V> kv) -> bool {
             return data.insert(kv).second;
         }
 
-        [[nodiscard]] V find(K key) {
+        [[nodiscard]] auto find(K key) -> V{
             return data.find(key)->second;
         } 
         
-        void run() {
-
-
+        auto run() -> void {
+            pin_to_cpu(id);
+            // TODO: actual loop
         }
 
-        void start() {
+        auto start() -> void {
             worker = std::jthread(&Shard::run, this);
         }
 
-        void stop() {
-            // If we have the running atomic flag we would also make it false here
-            worker.request_stop();
-        }
+        // void stop() {
+        //     If we have the running atomic flag we would also make it false here
+        // }
 
     private:
-        void pin_to_cpu(size_t cpu_id) {
+        auto pin_to_cpu(size_t cpu_id) -> void {
 #ifdef __linux__
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
@@ -107,19 +108,13 @@ public:
             shard.start();
         }
     }
-
-    ~Node() {
-        for(auto& shard : shards) {
-            shard.stop();
-        }
-    }
-    
-    [[nodiscard]] bool insert(K key, V value) {
+   
+    [[nodiscard]] auto insert(K key, V value) -> bool {
         size_t shard_id = std::hash<K>{}(key) % num_cores;
         return shards[shard_id].insert({key, value});      
     }
 
-    V get(K key) {
+    auto get(K key) -> V {
         size_t shard_id = std::hash<K>{}(key) % num_cores;
         return shards[shard_id].find(key);
     }
@@ -130,7 +125,7 @@ Node<K, V> make_node(int id) {
     return Node<K, V>(id);
 }
 
-int main() {
+auto main() -> int {
     auto node = make_node<int, std::string>(0);
 
     std::cout << node.insert(0, "Hello, World!") << "\n";
