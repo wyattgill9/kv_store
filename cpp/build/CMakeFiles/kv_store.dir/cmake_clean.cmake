@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
   "CMakeFiles/kv_store.dir/link.d"
-  "CMakeFiles/kv_store.dir/src/main.cpp.o"
-  "CMakeFiles/kv_store.dir/src/main.cpp.o.d"
+  "CMakeFiles/kv_store.dir/src/test_main.cpp.o"
+  "CMakeFiles/kv_store.dir/src/test_main.cpp.o.d"
   "kv_store"
   "kv_store.pdb"
 )

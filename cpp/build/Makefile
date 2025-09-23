@@ -136,29 +136,29 @@ kv_store/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_store.dir/build.make CMakeFiles/kv_store.dir/build
 .PHONY : kv_store/fast
 
-src/main.o: src/main.cpp.o
-.PHONY : src/main.o
+src/test_main.o: src/test_main.cpp.o
+.PHONY : src/test_main.o
 
 # target to build an object file
-src/main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_store.dir/build.make CMakeFiles/kv_store.dir/src/main.cpp.o
-.PHONY : src/main.cpp.o
+src/test_main.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_store.dir/build.make CMakeFiles/kv_store.dir/src/test_main.cpp.o
+.PHONY : src/test_main.cpp.o
 
-src/main.i: src/main.cpp.i
-.PHONY : src/main.i
+src/test_main.i: src/test_main.cpp.i
+.PHONY : src/test_main.i
 
 # target to preprocess a source file
-src/main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_store.dir/build.make CMakeFiles/kv_store.dir/src/main.cpp.i
-.PHONY : src/main.cpp.i
+src/test_main.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_store.dir/build.make CMakeFiles/kv_store.dir/src/test_main.cpp.i
+.PHONY : src/test_main.cpp.i
 
-src/main.s: src/main.cpp.s
-.PHONY : src/main.s
+src/test_main.s: src/test_main.cpp.s
+.PHONY : src/test_main.s
 
 # target to generate assembly for a file
-src/main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_store.dir/build.make CMakeFiles/kv_store.dir/src/main.cpp.s
-.PHONY : src/main.cpp.s
+src/test_main.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/kv_store.dir/build.make CMakeFiles/kv_store.dir/src/test_main.cpp.s
+.PHONY : src/test_main.cpp.s
 
 # Help Target
 help:
@@ -170,9 +170,9 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... kv_store"
-	@echo "... src/main.o"
-	@echo "... src/main.i"
-	@echo "... src/main.s"
+	@echo "... src/test_main.o"
+	@echo "... src/test_main.i"
+	@echo "... src/test_main.s"
 .PHONY : help
 
 

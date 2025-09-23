@@ -1,5 +1,5 @@
-CMakeFiles/kv_store.dir/src/main.cpp.o: \
-  /home/wyattgill/Github/kv_store/cpp/src/main.cpp \
+CMakeFiles/kv_store.dir/src/test_main.cpp.o: \
+  /home/wyattgill/Github/kv_store/cpp/src/test_main.cpp \
   /nix/store/82kmz7r96navanrc2fgckh2bamiqrgsw-gcc-14.3.0/include/c++/14.3.0/cstddef \
   /nix/store/82kmz7r96navanrc2fgckh2bamiqrgsw-gcc-14.3.0/include/c++/14.3.0/x86_64-unknown-linux-gnu/bits/c++config.h \
   /nix/store/82kmz7r96navanrc2fgckh2bamiqrgsw-gcc-14.3.0/include/c++/14.3.0/x86_64-unknown-linux-gnu/bits/os_defines.h \

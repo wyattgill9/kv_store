@@ -72,28 +72,28 @@ include CMakeFiles/kv_store.dir/flags.make
 CMakeFiles/kv_store.dir/codegen:
 .PHONY : CMakeFiles/kv_store.dir/codegen
 
-CMakeFiles/kv_store.dir/src/main.cpp.o: CMakeFiles/kv_store.dir/flags.make
-CMakeFiles/kv_store.dir/src/main.cpp.o: /home/wyattgill/Github/kv_store/cpp/src/main.cpp
-CMakeFiles/kv_store.dir/src/main.cpp.o: CMakeFiles/kv_store.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/wyattgill/Github/kv_store/cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/kv_store.dir/src/main.cpp.o"
-	/run/current-system/sw/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/kv_store.dir/src/main.cpp.o -MF CMakeFiles/kv_store.dir/src/main.cpp.o.d -o CMakeFiles/kv_store.dir/src/main.cpp.o -c /home/wyattgill/Github/kv_store/cpp/src/main.cpp
+CMakeFiles/kv_store.dir/src/test_main.cpp.o: CMakeFiles/kv_store.dir/flags.make
+CMakeFiles/kv_store.dir/src/test_main.cpp.o: /home/wyattgill/Github/kv_store/cpp/src/test_main.cpp
+CMakeFiles/kv_store.dir/src/test_main.cpp.o: CMakeFiles/kv_store.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/wyattgill/Github/kv_store/cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/kv_store.dir/src/test_main.cpp.o"
+	/run/current-system/sw/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/kv_store.dir/src/test_main.cpp.o -MF CMakeFiles/kv_store.dir/src/test_main.cpp.o.d -o CMakeFiles/kv_store.dir/src/test_main.cpp.o -c /home/wyattgill/Github/kv_store/cpp/src/test_main.cpp
 
-CMakeFiles/kv_store.dir/src/main.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/kv_store.dir/src/main.cpp.i"
-	/run/current-system/sw/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/wyattgill/Github/kv_store/cpp/src/main.cpp > CMakeFiles/kv_store.dir/src/main.cpp.i
+CMakeFiles/kv_store.dir/src/test_main.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/kv_store.dir/src/test_main.cpp.i"
+	/run/current-system/sw/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/wyattgill/Github/kv_store/cpp/src/test_main.cpp > CMakeFiles/kv_store.dir/src/test_main.cpp.i
 
-CMakeFiles/kv_store.dir/src/main.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/kv_store.dir/src/main.cpp.s"
-	/run/current-system/sw/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/wyattgill/Github/kv_store/cpp/src/main.cpp -o CMakeFiles/kv_store.dir/src/main.cpp.s
+CMakeFiles/kv_store.dir/src/test_main.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/kv_store.dir/src/test_main.cpp.s"
+	/run/current-system/sw/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/wyattgill/Github/kv_store/cpp/src/test_main.cpp -o CMakeFiles/kv_store.dir/src/test_main.cpp.s
 
 # Object files for target kv_store
 kv_store_OBJECTS = \
-"CMakeFiles/kv_store.dir/src/main.cpp.o"
+"CMakeFiles/kv_store.dir/src/test_main.cpp.o"
 
 # External object files for target kv_store
 kv_store_EXTERNAL_OBJECTS =
 
-kv_store: CMakeFiles/kv_store.dir/src/main.cpp.o
+kv_store: CMakeFiles/kv_store.dir/src/test_main.cpp.o
 kv_store: CMakeFiles/kv_store.dir/build.make
 kv_store: CMakeFiles/kv_store.dir/compiler_depend.ts
 kv_store: CMakeFiles/kv_store.dir/link.txt

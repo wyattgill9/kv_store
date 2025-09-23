@@ -2,6 +2,7 @@
 #include <future>
 #include <memory>
 #include <optional>
+#include <stop_token>
 #include <thread>
 #include <unordered_map>
 #include <utility>
@@ -34,8 +35,8 @@ private:
         std::promise<bool> reply;
     };
 
-    using RequestVariant   = std::variant<GetRequest, PutRequest>;
-    using RequestQueue     = rigtorp::SPSCQueue<RequestVariant>;
+    using RequestVariant = std::variant<GetRequest, PutRequest>;
+    using RequestQueue   = rigtorp::SPSCQueue<RequestVariant>;
 
     struct Shard {
         size_t                        id;
@@ -43,7 +44,8 @@ private:
         std::unique_ptr<RequestQueue> in_queue; // client requests
 
         std::jthread                  worker;
-
+        std::stop_source              stop_src;
+        
         Shard(size_t id_)
             : id(id_) {
                 in_queue = std::make_unique<RequestQueue>(QUEUE_CAPACITY);
@@ -81,16 +83,21 @@ private:
             return future;
         }
         
-        auto run() -> void {
+        auto run(std::stop_token stoken) -> void {
             pin_to_cpu(id);
 
             for(;;) {
+                if (stoken.stop_requested()) {
+                    return;
+                }
+
                 while(!in_queue->front()) {
                     std::this_thread::yield();
                 }
 
                 RequestVariant request = std::move(*in_queue->front());
                 in_queue->pop();
+
                 handle_request(std::move(request));
             }
         }
@@ -113,7 +120,7 @@ private:
         }
 
         auto start() -> void {
-            worker = std::jthread(&Shard::run, this);
+            worker = std::jthread(&Shard::run, this, stop_src);
         }
 
     private:
@@ -143,8 +150,15 @@ public:
             shard.start();
         }
     }
-  
-    [[nodiscard]] auto insert(K key, V value) -> bool {
+
+    ~Node() {
+        for (auto& shard : shards) {
+            shard.worker.request_stop();
+        }
+    }
+   
+    // [[nodiscard]]
+    auto insert(K key, V value) -> bool {
         size_t shard_id = std::hash<K>{}(key) % num_cores;
         return shards[shard_id].put(key, value).get(); 
     }
@@ -155,11 +169,27 @@ public:
     }
 };
 
-auto main() -> int {
-    auto node = Node<int, std::string>(0);
+template <typename K, typename V>
+Node<K, V> make_node(int id) {
+    return Node<K, V>(id);
+}
 
-    std::cout << node.insert(0, "Hello, World!") << "\n";
+auto main() -> int {
+    auto node = make_node<int, std::string>(0);
+
+    // std::cout << node.insert(0, "Hello, World!") << "\n";
+    // std::cout << node.get(0).value() << "\n";
+
+    // for(int i = 0; i < 100; i++) {
+        // node.insert(i, "Hello, World");
+    // }
+    // 
+
     std::cout << node.get(0).value() << "\n";
+
+    // for(int i = 0; i < 100; i++) {
+        // std::cout << node.get(i).value() << "\n";
+    // }
 
     return 0;
 }
