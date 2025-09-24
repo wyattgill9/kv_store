@@ -1,3 +1,0 @@
-/home/wyattgill/Github/kv_store/cpp/build/CMakeFiles/kv_store.dir
-/home/wyattgill/Github/kv_store/cpp/build/CMakeFiles/edit_cache.dir
-/home/wyattgill/Github/kv_store/cpp/build/CMakeFiles/rebuild_cache.dir
