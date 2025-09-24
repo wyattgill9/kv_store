@@ -24,7 +24,7 @@
 #include <mach/thread_policy.h>
 #endif
 
-#include "SPSCQueue.h"
+#include "concurrentqueue.h"
 #include "xxhash.h"
 
 template<class... Ts>
@@ -55,25 +55,22 @@ private:
     };
 
     using RequestVariant = std::variant<GetRequest, PutRequest, FlushRequest>;
-    using RequestQueue   = rigtorp::SPSCQueue<RequestVariant>;
+    using RequestQueue   = moodycamel::ConcurrentQueue<RequestVariant>;
 
     struct Shard {
         size_t                        id;
         std::unordered_map<K, V>      data;
-        std::unique_ptr<RequestQueue> in_queue; // client requests
+        std::unique_ptr<RequestQueue> in_queue; 
+        moodycamel::ConsumerToken     consumer_token;
 
         std::jthread                  worker;
         std::stop_source              stop_src;
         
         Shard(size_t id_)
-            : id(id_) {
-                in_queue = std::make_unique<RequestQueue>(QUEUE_CAPACITY);
+            : id(id_)
+            , in_queue(std::make_unique<RequestQueue>(QUEUE_CAPACITY))
+            , consumer_token(*in_queue) {
             }
-
-        [[nodiscard]] auto insert(K key, V value) -> bool {
-            auto [it, inserted] = data.insert_or_assign(key, value);
-            return inserted;
-        }
 
         auto put(K key, V value) -> std::future<bool> {
             PutRequest request {
@@ -84,7 +81,7 @@ private:
 
             auto future = request.reply.get_future();
 
-            while(!in_queue->try_push(std::move(request)));
+            in_queue->enqueue(std::move(request));
 
             return future;
         }
@@ -97,7 +94,7 @@ private:
 
             auto future = request.reply.get_future();
 
-            while(!in_queue->try_push(std::move(request)));
+            in_queue->enqueue(std::move(request));
 
             return future;
         }
@@ -109,7 +106,7 @@ private:
 
             auto future = request.reply.get_future();
 
-            while (!in_queue->try_push(std::move(request)));
+            in_queue->enqueue(std::move(request));
 
             return future;   
         }
@@ -117,19 +114,18 @@ private:
         auto run(std::stop_token stoken) -> void {
             pin_to_cpu(id);
 
+            RequestVariant request;
+            
             for(;;) {
                 if (stoken.stop_requested()) {
                     return;
                 }
 
-                while(!in_queue->front()) {
+                if (in_queue->try_dequeue(consumer_token, request)) {
+                    handle_request(std::move(request));
+                } else {
                     std::this_thread::yield();
                 }
-
-                RequestVariant request = std::move(*in_queue->front());
-                in_queue->pop();
-
-                handle_request(std::move(request));
             }
         }
 
@@ -140,14 +136,14 @@ private:
                     if(it != data.end()) {
                         req.reply.set_value(it->second);
                     } else {
-                        return req.reply.set_value(std::nullopt);
+                        req.reply.set_value(std::nullopt);
                     }
                 },
                 [this](PutRequest& req) {
                     auto [it, inserted] = data.insert_or_assign(req.key, req.value);
-                    req.reply.set_value(inserted);
+                    req.reply.set_value(true); // insert_or_assign always works
                 },
-                // guarentees everything before it is processed
+                // guarantees everything before it is processed
                 [this](FlushRequest& req) {
                     req.reply.set_value();
                 }
@@ -194,6 +190,7 @@ public:
     explicit Node(size_t id)
      : id(id), num_cores(std::thread::hardware_concurrency()) {
 
+        shards.reserve(num_cores);
         for (size_t i = 0; i < num_cores; i++) {
             shards.emplace_back(i);
         }
@@ -238,18 +235,60 @@ Node<K, V> make_node(int id) {
     return Node<K, V>(id);
 }
 
-auto main() -> int {
+// auto main() -> int {
+//     using clock = std::chrono::steady_clock;
+
+//     constexpr int n = 10'000;
+//     auto node = make_node<size_t, std::string>(0);
+
+//     std::this_thread::sleep_for(std::chrono::seconds(1));
+
+//     auto start = clock::now();
+//     for (size_t i = 0; i < n; ++i) {
+//         node.insert(i, "value");
+//     }
+//     node.flush();
+//     auto end = clock::now();
+
+//     std::chrono::duration<double> duration = end - start;
+
+//     std::cout << "Put " << n << " items in "
+//               << duration.count() << " seconds. ("
+//               << n * (1/duration.count()) << " insertions/s)\n";
+
+//     return 0;
+// }
+
+int main() {
     using clock = std::chrono::steady_clock;
 
-    constexpr int n = 10'000;
+    constexpr int n = 100'000;
     auto node = make_node<size_t, std::string>(0);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
+    const int thread_count = 4;
+    const size_t per_thread = n / thread_count;
+
     auto start = clock::now();
-    for (size_t i = 0; i < n; ++i) {
-        node.insert(i, "value");
+
+    std::vector<std::thread> threads;
+    threads.reserve(thread_count);
+
+    for (int t = 0; t < thread_count; ++t) {
+        threads.emplace_back([&, t] {
+            size_t begin = t * per_thread;
+            size_t end = (t + 1) * per_thread;
+            for (size_t i = begin; i < end; ++i) {
+                node.insert(i, "value");
+            }
+        });
     }
+
+    for (auto &th : threads) {
+        th.join();
+    }
+
     node.flush();
     auto end = clock::now();
 
@@ -257,7 +296,8 @@ auto main() -> int {
 
     std::cout << "Put " << n << " items in "
               << duration.count() << " seconds. ("
-              << n * (1/duration.count()) << " insertions/s)\n";
+              << n / duration.count() << " insertions/s)\n";
 
     return 0;
 }
+
