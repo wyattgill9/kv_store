@@ -235,34 +235,10 @@ Node<K, V> make_node(int id) {
     return Node<K, V>(id);
 }
 
-// auto main() -> int {
-//     using clock = std::chrono::steady_clock;
-
-//     constexpr int n = 10'000;
-//     auto node = make_node<size_t, std::string>(0);
-
-//     std::this_thread::sleep_for(std::chrono::seconds(1));
-
-//     auto start = clock::now();
-//     for (size_t i = 0; i < n; ++i) {
-//         node.insert(i, "value");
-//     }
-//     node.flush();
-//     auto end = clock::now();
-
-//     std::chrono::duration<double> duration = end - start;
-
-//     std::cout << "Put " << n << " items in "
-//               << duration.count() << " seconds. ("
-//               << n * (1/duration.count()) << " insertions/s)\n";
-
-//     return 0;
-// }
-
 int main() {
     using clock = std::chrono::steady_clock;
 
-    constexpr int n = 100'000;
+    constexpr int n = 1'000'000;
     auto node = make_node<size_t, std::string>(0);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -270,15 +246,16 @@ int main() {
     const int thread_count = 4;
     const size_t per_thread = n / thread_count;
 
-    auto start = clock::now();
-
     std::vector<std::thread> threads;
     threads.reserve(thread_count);
+
+    auto start = clock::now();
 
     for (int t = 0; t < thread_count; ++t) {
         threads.emplace_back([&, t] {
             size_t begin = t * per_thread;
             size_t end = (t + 1) * per_thread;
+
             for (size_t i = begin; i < end; ++i) {
                 node.insert(i, "value");
             }
@@ -290,6 +267,7 @@ int main() {
     }
 
     node.flush();
+
     auto end = clock::now();
 
     std::chrono::duration<double> duration = end - start;
@@ -300,4 +278,3 @@ int main() {
 
     return 0;
 }
-
